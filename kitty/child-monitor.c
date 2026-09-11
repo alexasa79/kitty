@@ -805,6 +805,15 @@ prepare_to_render_os_window(OSWindow *os_window, monotonic_t now, unsigned int *
             }
             bool is_active_window = i == tab->active_window;
             if (is_active_window) {
+#ifdef __APPLE__
+                // Tabs share a native accessibility element. Notify readers
+                // before uploading selection data clears the dirty state, so
+                // they discard text/ranges cached for the previous tab.
+                if (os_window->is_focused && (!os_window->focused_at_last_render ||
+                    os_window->last_active_window_id != w->id || screen_is_selection_dirty(WD.screen))) {
+                    notify_accessibility_selection_changed(os_window);
+                }
+#endif
                 *active_window_id = w->id;
                 if (collect_cursor_info(&WD.screen->cursor_render_info, w, now, os_window)) needs_render = true;
                 WD.screen->cursor_render_info.is_focused = os_window->is_focused;

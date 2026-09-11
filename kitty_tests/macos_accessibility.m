@@ -7,6 +7,14 @@
 #import <objc/runtime.h>
 
 static NSString *selection = nil;
+static NSMutableArray<NSString *> *notifications;
+static NSString *reader_cached_text;
+
+static void record_notification(id self, SEL cmd, NSString *notification) {
+    (void)cmd;
+    [notifications addObject:notification];
+    reader_cached_text = [self accessibilityValue];
+}
 
 static NSString *selected_text(id self, SEL cmd) {
     (void)self; (void)cmd;
@@ -49,6 +57,10 @@ int main(int argc, const char **argv) {
         Class test_class = objc_allocateClassPair(base, "SelectionTestView", 0);
         Method getter = class_getInstanceMethod(base, @selector(accessibilitySelectedText));
         require_true(class_addMethod(test_class, @selector(accessibilitySelectedText), (IMP)selected_text, method_getTypeEncoding(getter)), "install selection fixture");
+        SEL post = NSSelectorFromString(@"postAccessibilitySelectionNotification:");
+        Method post_method = class_getInstanceMethod(base, post);
+        require_true(post_method != NULL, "selection change notification support must exist");
+        require_true(class_addMethod(test_class, post, (IMP)record_notification, method_getTypeEncoding(post_method)), "install notification observer");
         objc_registerClassPair(test_class);
         id view = ((id (*)(id, SEL, void *))objc_msgSend)([test_class alloc], NSSelectorFromString(@"initWithGlfwWindow:"), NULL);
         require_true(view != nil, "create view");
@@ -68,6 +80,18 @@ int main(int argc, const char **argv) {
         selection = @"x";
         require_true([view accessibilityStringForRange:old_range] == nil, "stale range after selection shrinks must be rejected");
         check_selection(view, nil, 0);
+        // Readers cache the native view, which is shared by all Kitty tabs.
+        // Both notifications must let a reader refresh its value on each switch.
+        notifications = [NSMutableArray array];
+        SEL changed = NSSelectorFromString(@"notifyAccessibilitySelectionChanged");
+        require_true([view respondsToSelector:changed], "selection change entry point must exist");
+        for (NSString *tab_text in @[@"first tab", @"second tab", @"first tab", @"", @"new selection"]) {
+            selection = tab_text;
+            [notifications removeAllObjects];
+            ((void (*)(id, SEL))objc_msgSend)(view, changed);
+            require_true([notifications isEqual:@[NSAccessibilityValueChangedNotification, NSAccessibilitySelectedTextChangedNotification]], "notify both value and selection changes");
+            require_true([reader_cached_text isEqual:tab_text], "reader must refresh cached text after tab/selection changes");
+        }
         printf("accessibility selection probe passed\n");
     }
     return 0;

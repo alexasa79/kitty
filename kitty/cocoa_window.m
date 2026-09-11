@@ -976,6 +976,15 @@ cocoa_focus_window(void *w) {
     [window makeKeyWindow];
 }
 
+void
+cocoa_notify_accessibility_selection_changed(void *w) {
+    @autoreleasepool {
+        NSView *view = [(NSWindow*)w contentView];
+        SEL notify = NSSelectorFromString(@"notifyAccessibilitySelectionChanged");
+        if ([view respondsToSelector:notify]) [view performSelector:notify];
+    }
+}
+
 long
 cocoa_window_number(void *w) {
     NSWindow *window = (NSWindow*)w;

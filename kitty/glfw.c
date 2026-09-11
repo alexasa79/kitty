@@ -1574,6 +1574,15 @@ set_os_window_chrome(OSWindow *w) {
     }
 }
 
+void
+notify_accessibility_selection_changed(OSWindow *os_window) {
+#ifdef __APPLE__
+    if (os_window->handle) cocoa_notify_accessibility_selection_changed(glfwGetCocoaWindow(os_window->handle));
+#else
+    (void)os_window;
+#endif
+}
+
 static PyObject*
 native_window_handle(GLFWwindow *w) {
 #ifdef __APPLE__

@@ -2113,6 +2113,18 @@ void _glfwPlatformUpdateIMEState(_GLFWwindow *w, const GLFWIMEUpdateEvent *ev) {
 
 #endif
 
+// Called when the rendered terminal selection or active tab/pane changes.
+- (void)postAccessibilitySelectionNotification:(NSString *)notification
+{
+    NSAccessibilityPostNotification(self, notification);
+}
+
+- (void)notifyAccessibilitySelectionChanged
+{
+    [self postAccessibilitySelectionNotification:NSAccessibilityValueChangedNotification];
+    [self postAccessibilitySelectionNotification:NSAccessibilitySelectedTextChangedNotification];
+}
+
 - (NSString *)accessibilitySelectedText
 {
     NSString *text = nil;

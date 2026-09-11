@@ -48,6 +48,7 @@ typedef enum {
 } CocoaPendingAction;
 
 void cocoa_focus_window(void *w);
+void cocoa_notify_accessibility_selection_changed(void *w);
 long cocoa_window_number(void *w);
 void cocoa_application_lifecycle_event(bool);
 void cocoa_recreate_global_menu(void);

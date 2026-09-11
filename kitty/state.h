@@ -611,6 +611,7 @@ void stop_main_loop(void);
 void on_os_window_font_size_change(OSWindow *window, double new_sz);
 void set_os_window_title_from_window(Window *w, OSWindow *os_window);
 void update_os_window_title(OSWindow *os_window);
+void notify_accessibility_selection_changed(OSWindow *os_window);
 void fake_scroll(Window *w, int amount, bool upwards);
 Window* window_for_window_id(id_type kitty_window_id);
 bool mouse_open_url(Window *w);
