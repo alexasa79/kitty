@@ -147,6 +147,22 @@ class TestBuild(BaseTest):
             self.assertTrue(os.path.isfile(path), f'{path} is not a file')
             self.assertTrue(os.access(path, os.X_OK), f'{path} is not executable')
 
+    def test_macos_accessibility_selection(self) -> None:
+        from kitty.constants import glfw_path, is_macos
+        if not is_macos or not shutil.which('clang'):
+            self.skipTest('Accessibility selection test requires macOS and clang')
+        src = os.path.join(os.path.dirname(__file__), 'macos_accessibility.m')
+        with tempfile.TemporaryDirectory() as tdir:
+            exe = os.path.join(tdir, 'accessibility_probe')
+            cp = subprocess.run(
+                ['clang', '-Wall', '-Wextra', '-Werror', '-framework', 'AppKit', src, '-o', exe],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+            )
+            self.assertEqual(cp.returncode, 0, cp.stdout)
+            cp = subprocess.run([exe, glfw_path('cocoa')], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            self.assertEqual(cp.returncode, 0, cp.stdout)
+            self.assertIn('accessibility selection probe passed', cp.stdout)
+
     def test_all_kitten_names(self) -> None:
         from kittens.runner import all_kitten_names
         names = all_kitten_names()

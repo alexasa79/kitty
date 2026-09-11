@@ -2081,6 +2081,11 @@ void _glfwPlatformUpdateIMEState(_GLFWwindow *w, const GLFWIMEUpdateEvent *ev) {
     if (selector == @selector(accessibilityRole) ||
         selector == @selector(accessibilitySelectedText) ||
         selector == @selector(accessibilitySelectedTextRange) ||
+        selector == @selector(accessibilitySelectedTextRanges) ||
+        selector == @selector(accessibilityVisibleCharacterRange) ||
+        selector == @selector(accessibilityStringForRange:) ||
+        selector == @selector(accessibilityAttributedStringForRange:) ||
+        selector == @selector(isAccessibilityFocused) ||
         selector == @selector(accessibilityNumberOfCharacters) ||
         selector == @selector(accessibilityInsertionPointLineNumber) ||
         selector == @selector(accessibilityValue) ||
@@ -2124,16 +2129,32 @@ void _glfwPlatformUpdateIMEState(_GLFWwindow *w, const GLFWIMEUpdateEvent *ev) {
 // Accessibility methods required for dictation support
 // See https://github.com/kovidgoyal/kitty/issues/3732
 
+- (BOOL)isAccessibilityFocused
+{
+    return [self window] != nil && [[self window] firstResponder] == self;
+}
+
 - (NSRange)accessibilitySelectedTextRange
 {
-    // Return position 0 with no selection for dictation support
-    return NSMakeRange(0, 0);
+    // Expose the selection as a small, self-contained text buffer. Its offsets
+    // are NSString (UTF-16) offsets, not terminal cells or UTF-8 byte offsets.
+    // With no selection this remains (0, 0), as required by dictation.
+    return NSMakeRange(0, [[self accessibilityValue] length]);
+}
+
+- (NSArray<NSValue *> *)accessibilitySelectedTextRanges
+{
+    return @[[NSValue valueWithRange:[self accessibilitySelectedTextRange]]];
+}
+
+- (NSRange)accessibilityVisibleCharacterRange
+{
+    return [self accessibilitySelectedTextRange];
 }
 
 - (NSInteger)accessibilityNumberOfCharacters
 {
-    // Terminal doesn't have a fixed text buffer, return 0
-    return 0;
+    return [[self accessibilityValue] length];
 }
 
 - (NSInteger)accessibilityInsertionPointLineNumber
@@ -2144,8 +2165,26 @@ void _glfwPlatformUpdateIMEState(_GLFWwindow *w, const GLFWIMEUpdateEvent *ev) {
 
 - (NSString *)accessibilityValue
 {
-    // Terminal doesn't expose its buffer as an accessibility value
-    return @"";
+    // Keep AXValue consistent with AXSelectedText and AXSelectedTextRange.
+    // This exposes only the selection, not the terminal's full scrollback.
+    NSString *text = [self accessibilitySelectedText];
+    return text ? text : @"";
+}
+
+- (NSString *)accessibilityStringForRange:(NSRange)range
+{
+    NSString *text = [self accessibilityValue];
+    NSUInteger length = [text length];
+    // Check without adding location and length, which could overflow for an
+    // invalid range. The selection may also have changed since the last query.
+    if (range.location > length || range.length > length - range.location) return nil;
+    return [text substringWithRange:range];
+}
+
+- (NSAttributedString *)accessibilityAttributedStringForRange:(NSRange)range
+{
+    NSString *text = [self accessibilityStringForRange:range];
+    return text ? [[[NSAttributedString alloc] initWithString:text] autorelease] : nil;
 }
 
 - (void)setAccessibilityValue:(NSString *)value
